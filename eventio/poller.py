@@ -61,13 +61,36 @@ class Handler(object):
 
         pass
 
+    @classmethod
+    def get_all_bases(cls, all_bases=set()):
+
+        all_bases.update(cls.__bases__)
+        for c in cls.__bases__:
+            if hasattr(c, 'get_all_bases'):
+                c.get_all_bases(all_bases=all_bases)
+
+        return all_bases
+
+    @classmethod
+    def is_overriden(cls, fn_name):
+
+        bases = cls.get_all_bases()
+        impls = set()
+        for b in bases:
+            if b is Handler:
+                continue
+
+            impl = b.__dict__.get(fn_name)
+            if impl is not None:
+                impls.add(impl)
+
+        return bool(impls)
+
     def wants_readable(self):
 
         logd(f'handler[{self.name}]: check readable')
-        self_readable = self.__class__.__dict__.get('on_readable')
-        base_readable = Handler.__dict__.get('on_readable')
-        return self_readable is not None or \
-                self_readable != base_readable
+
+        return self.is_overriden('on_readable')
 
     def wants_writeable(self):
 
@@ -76,7 +99,8 @@ class Handler(object):
     def wants_errorable(self):
 
         logd(f'handler[{self.name}]: check errorable')
-        return self.__class__.__dict__.get('on_errorable') is not None
+
+        return self.is_overriden('on_errorable')
 
     def on_run(self):
 
