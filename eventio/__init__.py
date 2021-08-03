@@ -19,4 +19,20 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+import functools
+
+from . import poller
 from .poller import Handler, Poller
+
+log =  functools.partial(print, 'info   :')
+logw = functools.partial(print, 'warning:')
+loge = functools.partial(print, 'error  :')
+logd = functools.partial(print, 'debug  :')
+
+
+def set_logfns(i, w, e, d):
+
+    log('setting log functions: {__name__}, {i}, {w}, {e}, {d}')
+
+    poller.set_logfns(i, w, e, d)

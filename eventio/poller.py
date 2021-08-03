@@ -31,6 +31,19 @@ loge = functools.partial(print, 'error  :')
 logd = functools.partial(print, 'debug  :')
 
 
+def set_logfns(i, w, e, d):
+
+    global log
+    global logw
+    global loge
+    global logd
+
+    log = i
+    logw = w
+    loge = e
+    logd = e
+
+
 class Handler(object):
 
     def __init__(self, name, fds=tuple()):
