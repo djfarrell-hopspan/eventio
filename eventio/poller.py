@@ -154,6 +154,13 @@ class Poller(object):
 
         handler.set_poller(self)
 
+    def pop_handler(self, handler):
+
+        log(f'poller: pop handler: {handler.name}')
+
+        for fd in handler.fds:
+            self.handler_fds.pop(fd)
+
     def run_one(self, timeout=None):
 
         if self.timeouts:
