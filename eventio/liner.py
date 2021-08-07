@@ -46,13 +46,17 @@ class LineMixin(object):
 
     def on_line_data(self, data):
 
+        logd(f'{self.name}: on line data: {data}')
+
         if isinstance(data, str):
             data = data.encode()
 
         if b'\n' not in data:
+            logd(f'{self.name}: no new line')
             self.__partial.append(data)
         else:
             line_end_idx = data.find(b'\n')
+            logd(f'{self.name}: line end idx: {line_end_idx}')
             prev_line_end_idx=0
             while line_end_idx != -1:
                 self.on_line(b''.join(self.__partial + [data[prev_line_end_idx:line_end_idx],]))

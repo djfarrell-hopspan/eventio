@@ -122,9 +122,9 @@ class StdioBaseLineHandler(StdioBaseHandler, liner.LineMixin):
         logd(f'{self.name}: stdin: {data}')
         self.on_line_data(data)
 
-class StdioLineHandler(StdioBaseHandler, liner.LineMixin):
+class StdioLineHandler(StdioBaseLineHandler, liner.LineMixin):
 
     def __init__(self):
 
-        StdioBaseHandler.__init__(self, '__stdin__', sys.stdin)
+        StdioBaseHandler.__init__(self, '__stdin_line__', sys.stdin)
         liner.LineMixin.__init__(self)
