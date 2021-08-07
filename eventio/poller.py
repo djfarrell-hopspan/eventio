@@ -21,6 +21,8 @@
 
 import bisect
 import functools
+import fcntl
+import os
 import select
 import time
 
@@ -57,6 +59,31 @@ class Handler(object):
             fds = (fds,)
         self.fds.update(fds)
         self.poller = None
+        self.set_fds_nonblock()
+
+    def on_closed_fd(self, fd):
+
+        log('handler[{self.name}]: on closed fd: {fd}')
+        if fd in self.fds:
+            self.fds.discard(fd)
+            self.poller.pop_fd(fd)
+
+    def check_closed_fds(self):
+
+        for fd in self.fds:
+            logd(f'{self.name}: checking fd: {fd}')
+            fcntl_ret = fcntl.fcntl(fd, fcntl.F_GETFD)
+            if fcntl_ret == -1:
+                log(f'{self.name}: bad fd: {fd}')
+                self.poller.pop_fd(fd)
+
+    def set_fds_nonblock(self):
+
+        for fd in self.fds:
+            flag = fcntl.fcntl(fd, fcntl.F_GETFL)
+            if not flag & os.O_NONBLOCK:
+                log(f'{self.name}: setting fd nonblock: {fd}')
+                fcntl.fcntl(fd, fcntl.F_SETFL, flag | os.O_NONBLOCK)
 
     def set_poller(self, poller):
 
@@ -64,15 +91,15 @@ class Handler(object):
 
     def on_readable(self, fd):
 
-        pass
+        logd(f'handler[{self.__name__}]: on readable')
 
     def on_writeable(self, fd):
 
-        pass
+        logd(f'handler[{self.__name__}]: on writeable')
 
     def on_errorable(self, fd):
 
-        pass
+        loge(f'handler[{self.__name__}]: on error')
 
     @classmethod
     def get_all_bases(cls, all_bases=set()):
@@ -87,7 +114,7 @@ class Handler(object):
     @classmethod
     def is_overriden(cls, fn_name):
 
-        bases = cls.get_all_bases()
+        bases = cls.get_all_bases({cls})
         impls = set()
         for b in bases:
             if b is Handler:
@@ -113,7 +140,7 @@ class Handler(object):
 
         logd(f'handler[{self.name}]: check errorable')
 
-        return self.is_overriden('on_errorable')
+        return True
 
     def on_run(self):
 
@@ -158,8 +185,26 @@ class Poller(object):
 
         log(f'poller: pop handler: {handler.name}')
 
-        for fd in handler.fds:
+        for fd in set(self.handler_fds):
             self.handler_fds.pop(fd)
+
+        if not len(self.handler_fds):
+            logw(f'poller: no more handlers')
+            raise SystemExit(0)
+
+    def pop_fd(self, fd):
+
+        log(f'poller: pop fd: {fd}')
+
+        if fd not in self.handler_fds:
+            logw(f'poller: missing handler for fd: {fd}')
+        for fd in set(self.handler_fds):
+            handler = self.handler_fds.pop(fd)
+            log(f'poller: pop fd -> {handler.name}')
+
+        if not len(self.handler_fds):
+            logw(f'poller: no more handlers')
+            raise SystemExit(0)
 
     def run_one(self, timeout=None):
 
@@ -173,15 +218,29 @@ class Poller(object):
             timeout = deadline - now
 
         polls = self.epoll.poll(timeout=timeout)
+        used_handlers = set()
         for fd, events in polls:
             handler = self.handler_fds.get(fd)
+            used_handlers.add(handler)
+            num_events = 0
             if handler:
                 if events & self.ein:
+                    logd(f'poller: {handler.name}: ein')
                     handler.on_readable(fd)
+                    num_events += 1
                 if events & self.eout:
+                    logd(f'poller: {handler.name}: eout')
                     handler.on_writeable(fd)
+                    num_events += 1
                 if events & self.eerr:
+                    logd(f'poller: {handler.name}: eerr')
                     handler.on_errorable(fd)
+                    num_events += 1
+                if not num_events:
+                    loge(f'poller: {handler.name}: had events but non taken')
+                    handler.on_closed_fd(fd)
+        for handler in used_handlers:
+            handler.check_closed_fds()
 
         now = time.monotonic()
         num_timeouts = 0
@@ -208,6 +267,8 @@ class Poller(object):
             while True:
                 self.run_one()
         except KeyboardInterrupt:
+            pass
+        except SystemExit:
             pass
 
         log(f'poller: ... finished')

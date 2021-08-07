@@ -19,13 +19,9 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 import functools
-
-from . import poller, proccer, stdio, liner
-from .poller import Handler, Poller
-from .proccer import PopenHandler
-from .stdio import StdioHandler, StdioLineHandler
+import subprocess
+import sys
 
 
 log =  functools.partial(print, 'info   :', flush=True)
@@ -34,16 +30,34 @@ loge = functools.partial(print, 'error  :', flush=True)
 logd = functools.partial(print, 'debug  :', flush=True)
 
 
-def set_logfns(i, w, e, d):
+class LineMixin(object):
 
-    log(f'setting log functions: {__name__}, {i}, {w}, {e}, {d}')
+    def __init__(self):
 
-    modules = {
-        poller,
-        proccer,
-        stdio,
-        liner,
-    }
+        self.__partial = []
+    
+    def on_line(self, line):
 
-    for m in modules:
-        m.set_logfns(i, w, e, d)
+        log(f'line[{self.name}]: {line}')
+
+    def on_flush_line(self):
+        
+        self.on_line(b''.join(self.__partial))
+
+    def on_line_data(self, data):
+
+        if isinstance(data, str):
+            data = data.encode()
+
+        if b'\n' not in data:
+            self.__partial.append(data)
+        else:
+            line_end_idx = data.find(b'\n')
+            prev_line_end_idx=0
+            while line_end_idx != -1:
+                self.on_line(b''.join(self.__partial + [data[prev_line_end_idx:line_end_idx],]))
+                self.__partial.clear()
+                prev_line_end_idx = line_end_idx + 1
+                line_end_idx = data.find(b'\n', prev_line_end_idx)
+            if line_end_idx != -1:
+                self.__partial.append(data[line_end_idx + 1:])
