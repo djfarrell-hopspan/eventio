@@ -63,10 +63,15 @@ class Handler(object):
 
     def on_closed_fd(self, fd):
 
-        log('handler[{self.name}]: on closed fd: {fd}')
+        log(f'handler[{self.name}]: on closed fd: {fd}')
         if fd in self.fds:
+            self.on_flush_fd(fd)
             self.fds.discard(fd)
             self.poller.pop_fd(fd)
+
+    def on_flush_fd(self, fd):
+
+        log(f'handler[{self.name}]: on flush fd: {fd}')
 
     def check_closed_fds(self):
 
@@ -91,15 +96,20 @@ class Handler(object):
 
     def on_readable(self, fd):
 
-        logd(f'handler[{self.__name__}]: on readable')
+        logd(f'handler[{self.name}]: on readable')
 
     def on_writeable(self, fd):
 
-        logd(f'handler[{self.__name__}]: on writeable')
+        logd(f'handler[{self.name}]: on writeable')
 
     def on_errorable(self, fd):
 
-        loge(f'handler[{self.__name__}]: on error')
+        loge(f'handler[{self.name}]: on error')
+
+    def on_hupable(self, fd):
+
+        loge(f'handler[{self.name}]: on hup')
+        self.on_closed_fd(fd)
 
     @classmethod
     def get_all_bases(cls, all_bases=set()):
@@ -142,6 +152,12 @@ class Handler(object):
 
         return True
 
+    def wants_hupable(self):
+
+        logd(f'handler[{self.name}]: check hupable')
+
+        return True
+
     def on_run(self):
 
         log(f'handler[{self.name}]: on run')
@@ -153,6 +169,7 @@ class Poller(object):
     ein = select.EPOLLIN
     eout = select.EPOLLOUT
     eerr = select.EPOLLERR
+    ehup = select.EPOLLHUP
 
     def __init__(self):
 
@@ -222,22 +239,26 @@ class Poller(object):
         for fd, events in polls:
             handler = self.handler_fds.get(fd)
             used_handlers.add(handler)
-            num_events = 0
+            done_events = 0
             if handler:
                 if events & self.ein:
-                    logd(f'poller: {handler.name}: ein')
+                    logd(f'poller: {handler.name}: in: {self.ein}')
                     handler.on_readable(fd)
-                    num_events += 1
+                    done_events += self.ein
                 if events & self.eout:
-                    logd(f'poller: {handler.name}: eout')
+                    logd(f'poller: {handler.name}: out: {self.eout}')
                     handler.on_writeable(fd)
-                    num_events += 1
+                    done_events += self.eout
                 if events & self.eerr:
-                    logd(f'poller: {handler.name}: eerr')
+                    logd(f'poller: {handler.name}: err: {self.eerr}')
                     handler.on_errorable(fd)
-                    num_events += 1
-                if not num_events:
-                    loge(f'poller: {handler.name}: had events but non taken')
+                    done_events += self.eerr
+                if events & self.ehup:
+                    logd(f'poller: {handler.name}: hup: {self.ehup}')
+                    handler.on_hupable(fd)
+                    done_events += self.ehup
+                if events & ~done_events:
+                    loge(f'poller: {handler.name}: {fd}: {events}: {done_events}: left over events: 0x{events & ~done_events:08x}')
                     handler.on_closed_fd(fd)
         for handler in used_handlers:
             handler.check_closed_fds()

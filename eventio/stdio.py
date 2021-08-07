@@ -65,6 +65,29 @@ class StdioBaseHandler(poller.Handler):
         self.stderr = stderr
         self.stdout = stdout
 
+    def on_flush_fd(self, fd):
+
+        logw(f'{self.name}: flush fd: {fd}')
+
+        if self.stdin.fileno() == fd:
+            self.on_flush_stdin()
+        elif self.stderr is not None and self.stderr.fileno() == fd:
+            self.on_flush_stderr()
+        elif self.stdout is not None and self.stdout.fileno() == fd:
+            self.on_flush_stdout()
+
+    def on_flush_stdin(self):
+
+        pass
+
+    def on_flush_stderr(self):
+
+        pass
+
+    def on_flush_stderr(self):
+
+        pass
+
     def on_stdin(self, data):
 
         log(f'{self.name}: stdin: {data}')
@@ -111,6 +134,10 @@ class StdioBaseLineHandler(StdioBaseHandler, liner.LineMixin):
 
         StdioBaseHandler.__init__(self, *args, **kwargs)
         liner.LineMixin.__init__(self)
+
+    def on_flush_stdin(self):
+
+        self.on_flush_line()
 
     def on_stdin_closed(self):
 

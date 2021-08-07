@@ -63,5 +63,5 @@ class LineMixin(object):
                 self.__partial.clear()
                 prev_line_end_idx = line_end_idx + 1
                 line_end_idx = data.find(b'\n', prev_line_end_idx)
-            if line_end_idx != -1:
-                self.__partial.append(data[line_end_idx + 1:])
+            if line_end_idx == -1:
+                self.__partial.append(data[prev_line_end_idx:])
