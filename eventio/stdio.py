@@ -133,7 +133,7 @@ class StdioBaseLineHandler(StdioBaseHandler, liner.LineMixin):
     def __init__(self, *args, **kwargs):
 
         StdioBaseHandler.__init__(self, *args, **kwargs)
-        liner.LineMixin.__init__(self)
+        liner.LineMixin.__init__(self, self.name)
 
     def on_flush_stdin(self):
 
@@ -154,4 +154,4 @@ class StdioLineHandler(StdioBaseLineHandler, liner.LineMixin):
     def __init__(self):
 
         StdioBaseHandler.__init__(self, '__stdin_line__', sys.stdin)
-        liner.LineMixin.__init__(self)
+        liner.LineMixin.__init__(self, self.name)

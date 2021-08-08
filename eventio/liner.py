@@ -30,15 +30,29 @@ loge = functools.partial(print, 'error  :', flush=True)
 logd = functools.partial(print, 'debug  :', flush=True)
 
 
+def set_logfns(i, w, e, d):
+
+    global log
+    global logw
+    global loge
+    global logd
+
+    log = i
+    logw = w
+    loge = e
+    logd = d
+
+
 class LineMixin(object):
 
-    def __init__(self):
+    def __init__(self, name):
 
         self.__partial = []
-    
+        self.__name = name
+        
     def on_line(self, line):
 
-        log(f'line[{self.name}]: {line}')
+        log(f'line[{self.__name}]: {line}')
 
     def on_flush_line(self):
         
@@ -46,17 +60,17 @@ class LineMixin(object):
 
     def on_line_data(self, data):
 
-        logd(f'{self.name}: on line data: {data}')
+        logd(f'{self.__name}: on line data: {len(data)}')
 
         if isinstance(data, str):
             data = data.encode()
 
         if b'\n' not in data:
-            logd(f'{self.name}: no new line')
+            logd(f'{self.__name}: no new line')
             self.__partial.append(data)
         else:
             line_end_idx = data.find(b'\n')
-            logd(f'{self.name}: line end idx: {line_end_idx}')
+            logd(f'{self.__name}: line end idx: {line_end_idx}')
             prev_line_end_idx=0
             while line_end_idx != -1:
                 self.on_line(b''.join(self.__partial + [data[prev_line_end_idx:line_end_idx],]))

@@ -26,6 +26,7 @@ from . import poller, proccer, stdio, liner
 from .poller import Handler, Poller
 from .proccer import PopenHandler
 from .stdio import StdioHandler, StdioLineHandler
+from .liner import LineMixin
 
 
 log =  functools.partial(print, 'info   :', flush=True)
